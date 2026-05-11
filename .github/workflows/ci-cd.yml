@@ -43,23 +43,20 @@ jobs:
       KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
     steps:
       - name: Checkout repository
-        if: ${{ secrets.KUBE_CONFIG != '' }}
         uses: actions/checkout@v4
-      - name: Configure kubeconfig
-        if: ${{ secrets.KUBE_CONFIG != '' }}
+      - name: Deploy to Kubernetes
         run: |
-          mkdir -p $HOME/.kube
-          echo "$KUBE_CONFIG" | base64 -d > $HOME/.kube/config
-      - name: Replace local image names with registry images
-        if: ${{ secrets.KUBE_CONFIG != '' }}
-        run: |
+          set -euo pipefail
+          if [ -z "${KUBE_CONFIG:-}" ]; then
+            echo "KUBE_CONFIG secret is not set; skipping Kubernetes deploy."
+            exit 0
+          fi
+          mkdir -p "$HOME/.kube"
+          echo "$KUBE_CONFIG" | base64 -d > "$HOME/.kube/config"
           sed -i "s|sre-backend:v1|ghcr.io/${{ github.repository_owner }}/advanced-demo-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
           sed -i "s|sre-frontend:v1|ghcr.io/${{ github.repository_owner }}/advanced-demo-frontend:${{ github.sha }}|g" k8s/frontend-deployment.yaml
           sed -i "s|imagePullPolicy: Never|imagePullPolicy: IfNotPresent|g" k8s/backend-deployment.yaml
           sed -i "s|imagePullPolicy: Never|imagePullPolicy: IfNotPresent|g" k8s/frontend-deployment.yaml
-      - name: Deploy manifests
-        if: ${{ secrets.KUBE_CONFIG != '' }}
-        run: |
           kubectl apply -f k8s/
           kubectl rollout status deployment/backend
           kubectl rollout status deployment/frontend
