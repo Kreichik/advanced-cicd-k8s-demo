@@ -39,14 +39,16 @@ jobs:
     name: Deploy to Kubernetes
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: ${{ secrets.KUBE_CONFIG != '' }}
+    env:
+      KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+    if: ${{ env.KUBE_CONFIG != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Configure kubeconfig
         run: |
           mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          echo "$KUBE_CONFIG" | base64 -d > $HOME/.kube/config
       - name: Replace local image names with registry images
         run: |
           sed -i "s|sre-backend:v1|ghcr.io/${{ github.repository_owner }}/advanced-demo-backend:${{ github.sha }}|g" k8s/backend-deployment.yaml
